@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ProjectModuleManager">
+    <modules>
+      <module fileurl="file://$PROJECT_DIR$/.idea/second_client.iml" filepath="$PROJECT_DIR$/.idea/second_client.iml" />
+      <module fileurl="file://$PROJECT_DIR$/../second_server/.idea/second_server.iml" filepath="$PROJECT_DIR$/../second_server/.idea/second_server.iml" />
+    </modules>
+  </component>
+</project>

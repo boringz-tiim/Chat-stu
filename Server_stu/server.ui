@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ui version="4.0">
+ <class>Dialog</class>
+ <widget class="QDialog" name="Dialog">
+  <property name="geometry">
+   <rect>
+    <x>0</x>
+    <y>0</y>
+    <width>928</width>
+    <height>463</height>
+   </rect>
+  </property>
+  <property name="windowTitle">
+   <string>Dialog</string>
+  </property>
+  <widget class="QStackedWidget" name="stackedWidget">
+   <property name="geometry">
+    <rect>
+     <x>0</x>
+     <y>0</y>
+     <width>921</width>
+     <height>451</height>
+    </rect>
+   </property>
+   <widget class="QWidget" name="Server">
+    <widget class="QPushButton" name="startButton">
+     <property name="geometry">
+      <rect>
+       <x>478</x>
+       <y>20</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>启动</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="serverPort">
+     <property name="geometry">
+      <rect>
+       <x>328</x>
+       <y>20</y>
+       <width>41</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>端口：</string>
+     </property>
+    </widget>
+    <widget class="QLabel" name="serverIP">
+     <property name="geometry">
+      <rect>
+       <x>38</x>
+       <y>20</y>
+       <width>81</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>服务器IP：</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="stopButton">
+     <property name="geometry">
+      <rect>
+       <x>588</x>
+       <y>20</y>
+       <width>101</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>停止</string>
+     </property>
+    </widget>
+    <widget class="QLineEdit" name="serverIPEdit">
+     <property name="geometry">
+      <rect>
+       <x>108</x>
+       <y>20</y>
+       <width>211</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="readOnly">
+      <bool>true</bool>
+     </property>
+    </widget>
+    <widget class="QGroupBox" name="messageHistoryBox">
+     <property name="geometry">
+      <rect>
+       <x>18</x>
+       <y>60</y>
+       <width>541</width>
+       <height>391</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="title">
+      <string>消息历史</string>
+     </property>
+     <widget class="QListWidget" name="messageHistoryWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>20</y>
+        <width>541</width>
+        <height>371</height>
+       </rect>
+      </property>
+     </widget>
+    </widget>
+    <widget class="QLineEdit" name="serverPortEdit">
+     <property name="geometry">
+      <rect>
+       <x>368</x>
+       <y>20</y>
+       <width>71</width>
+       <height>31</height>
+      </rect>
+     </property>
+    </widget>
+    <widget class="QGroupBox" name="userListBox">
+     <property name="geometry">
+      <rect>
+       <x>570</x>
+       <y>60</y>
+       <width>351</width>
+       <height>391</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="title">
+      <string>用户列表</string>
+     </property>
+     <widget class="QTableWidget" name="userListWidget">
+      <property name="geometry">
+       <rect>
+        <x>0</x>
+        <y>20</y>
+        <width>351</width>
+        <height>371</height>
+       </rect>
+      </property>
+      <column>
+       <property name="text">
+        <string>用户名</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>状态</string>
+       </property>
+      </column>
+      <column>
+       <property name="text">
+        <string>IP</string>
+       </property>
+      </column>
+     </widget>
+    </widget>
+   </widget>
+   <widget class="QWidget" name="userManage"/>
+  </widget>
+ </widget>
+ <resources/>
+ <connections/>
+</ui>
