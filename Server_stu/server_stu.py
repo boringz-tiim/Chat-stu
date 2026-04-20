@@ -1,5 +1,5 @@
 import sys, os, json, socket, threading, sqlite3, hashlib, time
-from PySide6.QtWidgets import QApplication, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QListWidget
+from PySide6.QtWidgets import QApplication, QPushButton, QLineEdit, QTableWidget, QTableWidgetItem, QListWidget, QMessageBox
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, QObject, Signal
 from PySide6.QtGui import QIcon
@@ -89,6 +89,22 @@ def get_all_users():
         rows = cur.fetchall()
         conn.close()
     return [r[0] for r in rows]
+def delete_user_from_db(username):
+    username = (username or "").strip()
+    if not username:
+        return False, "用户名不能为空"
+
+    with db_lock:
+        conn = sqlite3.connect(DB_PATH, timeout=10)
+        cur = conn.cursor()
+        cur.execute("DELETE FROM users WHERE username=?", (username,))
+        conn.commit()
+        deleted = cur.rowcount
+        conn.close()
+
+    if deleted == 0:
+        return False, "用户不存在"
+    return True, "删除成功"
 
 
 def send_json(conn, obj):
@@ -145,9 +161,11 @@ class MainWindow:
         self.serverPortEdit = None
         self.startButton = None
         self.stopButton = None
+        self.deleteUserButton = None
         self.userListWidget = None
         self.messageHistoryWidget = None
         self.server_thread = None
+        self.deleteUserButton=None
 
         self.load_ui()
         self.bind_signals()
@@ -173,7 +191,7 @@ class MainWindow:
         self.serverPortEdit = self.window.findChild(QLineEdit, "serverPortEdit")
         self.startButton = self.window.findChild(QPushButton, "startButton")
         self.stopButton = self.window.findChild(QPushButton, "stopButton")
-
+        self.deleteUserButton = self.window.findChild(QPushButton, "deleteUserButton")
         self.serverIPEdit.setText(get_local_ip())
         self.serverPortEdit.setText("5000")
 
@@ -192,7 +210,7 @@ class MainWindow:
     def bind_signals(self):
         self.startButton.clicked.connect(self.start_server_thread)
         self.stopButton.clicked.connect(self.closeServer)
-
+        self.deleteUserButton.clicked.connect(self.delete_selected_user)
     def ui_init_user_table(self, rows):
         table = self.userListWidget
         table.setRowCount(0)
@@ -202,6 +220,70 @@ class MainWindow:
             table.setItem(r, 0, QTableWidgetItem(username))
             table.setItem(r, 1, QTableWidgetItem(status))
             table.setItem(r, 2, QTableWidgetItem(ip))
+
+    def delete_selected_user(self):
+        table = self.userListWidget
+        if not table:
+            return
+
+        row = table.currentRow()
+        if row < 0:
+            QMessageBox.warning(self.window, "提示", "请先选中一个用户")
+            return
+
+        item = table.item(row, 0)
+        if not item:
+            QMessageBox.warning(self.window, "提示", "未获取到用户名")
+            return
+
+        username = item.text().strip()
+        if not username:
+            QMessageBox.warning(self.window, "提示", "用户名为空")
+            return
+
+        reply = QMessageBox.question(
+            self.window,
+            "确认删除",
+            f"确定要删除用户 {username} 吗？\n删除后该用户将无法再登录。",
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No
+        )
+        if reply != QMessageBox.StandardButton.Yes:
+            return
+
+        ok, msg = delete_user_from_db(username)
+        if not ok:
+            QMessageBox.warning(self.window, "删除失败", msg)
+            return
+
+        # 如果在线，先通知并断开
+        with self.lock:
+            conn = self.online_conns.pop(username, None)
+            if username in self.user_states:
+                del self.user_states[username]
+
+        if conn:
+            try:
+                send_json(conn, {"action": "server_close", "msg": "您的账号已被服务器删除"})
+            except Exception:
+                pass
+            try:
+                conn.shutdown(socket.SHUT_RDWR)
+            except Exception:
+                pass
+            try:
+                conn.close()
+            except Exception:
+                pass
+
+        # 刷新服务端表格
+        table.removeRow(row)
+
+        self.log_event("系统", f"已删除用户 {username}")
+
+        # 通知所有在线客户端刷新用户列表
+        self.broadcast_user_state_list()
+
+        QMessageBox.information(self.window, "删除成功", f"用户 {username} 已删除")
 
     def ui_update_user_row(self, username, status, ip):
         table = self.userListWidget

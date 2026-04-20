@@ -189,6 +189,24 @@
       </column>
      </widget>
     </widget>
+    <widget class="QPushButton" name="deleteUserButton">
+     <property name="geometry">
+      <rect>
+       <x>710</x>
+       <y>20</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>11</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>删除用户</string>
+     </property>
+    </widget>
    </widget>
    <widget class="QWidget" name="userManage"/>
   </widget>
