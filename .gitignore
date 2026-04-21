@@ -1,0 +1,9 @@
+__pycache__/
+*.pyc
+
+Client_stu/received_files/
+Client_stu/received_images/
+Server_stu/avatars/
+
+.idea/
+.vscode/
