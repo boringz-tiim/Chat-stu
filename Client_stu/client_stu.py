@@ -8,11 +8,11 @@ import base64
 import ipaddress
 import re
 from datetime import datetime
-
+import shutil
 from PySide6.QtWidgets import (
     QApplication, QStackedWidget, QPushButton, QLineEdit, QMessageBox,
     QListWidget, QListWidgetItem, QTextEdit, QLabel, QWidget, QHBoxLayout, QToolButton,
-    QFileDialog, QSizePolicy, QAbstractItemView
+    QFileDialog, QSizePolicy, QAbstractItemView, QMenu
 )
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, QObject, Signal, Qt, QUrl
@@ -101,7 +101,43 @@ class UiEmitter(QObject):
     users_update = Signal(list)
     msg_in = Signal(str, str, object)
     info = Signal(str)
+class FileLabel(QLabel):
+    def __init__(self, file_path="", parent=None):
+        super().__init__(parent)
+        self.file_path = file_path
 
+    def mouseDoubleClickEvent(self, event):
+        if self.file_path and os.path.exists(self.file_path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self.file_path))
+        else:
+            QMessageBox.warning(self.window(), "无法打开", "文件不存在或已被删除")
+        super().mouseDoubleClickEvent(event)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+
+        save_as_action = menu.addAction("另存为")
+        chosen = menu.exec(event.globalPos())
+
+        if chosen == save_as_action:
+            if not self.file_path or not os.path.exists(self.file_path):
+                QMessageBox.warning(self.window(), "另存失败", "源文件不存在")
+                return
+
+            target_path, _ = QFileDialog.getSaveFileName(
+                self.window(),
+                "另存为",
+                os.path.basename(self.file_path)
+            )
+
+            if not target_path:
+                return
+
+            try:
+                shutil.copy2(self.file_path, target_path)
+                QMessageBox.information(self.window(), "成功", f"文件已另存为:\n{target_path}")
+            except Exception as e:
+                QMessageBox.warning(self.window(), "另存失败", str(e))
 
 class MainWindow:
     def __init__(self):
