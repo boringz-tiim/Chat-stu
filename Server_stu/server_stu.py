@@ -522,6 +522,7 @@ class MainWindow:
                                 except (OSError, ConnectionError, BrokenPipeError):
                                     pass
 
+
                 elif action == "public_msg":
                     from_user = req.get("from", "").strip()
                     msg_type = req.get("type", "text")
@@ -531,15 +532,34 @@ class MainWindow:
                         send_json(conn, {"ok": False, "msg": "发送者不能为空"})
                         continue
 
-                    # 公聊文件
-                    if msg_type == "file":
+                    # 公聊图片
+
+                    if msg_type == "image":
                         filename = req.get("filename", "").strip()
                         data = req.get("data", "")
+                        if not filename or not data:
+                            send_json(conn, {"ok": False, "msg": "图片信息不完整"})
+                            continue
 
+                        forward_msg = {
+                            "action": "public_msg",
+                            "type": "image",
+                            "from": from_user,
+                            "filename": filename,
+                            "data": data,
+                            "timestamp": timestamp
+
+                        }
+
+
+                    # 公聊文件
+
+                    elif msg_type == "file":
+                        filename = req.get("filename", "").strip()
+                        data = req.get("data", "")
                         if not filename or not data:
                             send_json(conn, {"ok": False, "msg": "文件信息不完整"})
                             continue
-
                         forward_msg = {
                             "action": "public_msg",
                             "type": "file",
@@ -547,25 +567,28 @@ class MainWindow:
                             "filename": filename,
                             "data": data,
                             "timestamp": timestamp
+
                         }
 
+
                     # 公聊文本
+
                     else:
+
                         content = req.get("content", "").strip()
                         if not content:
                             send_json(conn, {"ok": False, "msg": "消息内容不能为空"})
                             continue
-
                         forward_msg = {
                             "action": "public_msg",
                             "from": from_user,
                             "content": content,
                             "timestamp": timestamp
+
                         }
 
                     with self.lock:
                         online_users = list(self.online_conns.items())
-
                     sent_count = 0
                     sent_set = set()
                     for uname, target_conn in online_users:
@@ -574,10 +597,13 @@ class MainWindow:
                                 send_json(target_conn, forward_msg)
                                 sent_count += 1
                                 sent_set.add(uname)
+
                             except Exception as e:
+
                                 print(f"发送给{uname}失败:{e}")
 
                     send_json(conn, {"ok": True, "msg": f"群聊消息已发送给{sent_count}人"})
+
                     self.log_event(from_user, f"发送群聊消息，送达{sent_count}人")
                 # elif action == "public_msg":
                 #     from_user = req.get("from", "")

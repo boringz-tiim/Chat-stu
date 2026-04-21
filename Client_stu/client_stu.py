@@ -11,12 +11,12 @@ from datetime import datetime
 import shutil
 from PySide6.QtWidgets import (
     QApplication, QStackedWidget, QPushButton, QLineEdit, QMessageBox,
-    QListWidget, QListWidgetItem, QTextEdit, QLabel, QWidget, QHBoxLayout, QToolButton,
-    QFileDialog, QSizePolicy, QAbstractItemView, QMenu
+    QListWidget, QListWidgetItem, QTextEdit, QLabel, QWidget, QHBoxLayout, QVBoxLayout,
+    QToolButton, QFileDialog, QSizePolicy, QAbstractItemView, QMenu
 )
 from PySide6.QtUiTools import QUiLoader
 from PySide6.QtCore import QFile, QIODevice, QObject, Signal, Qt, QUrl
-from PySide6.QtGui import QIcon, QDesktopServices
+from PySide6.QtGui import QIcon, QDesktopServices, QPixmap
 
 ui_path = r"D:\python-work\Chat_stu\Client_stu\client.ui"
 icon_path = r"D:\python-work\Chat_stu\Client_stu\icon.ico"
@@ -97,6 +97,48 @@ class FileLabel(QLabel):
             top = self.window()
             QMessageBox.warning(top, "无法打开", "文件不存在或已被删除")
         super().mouseDoubleClickEvent(event)
+class ImageLabel(QLabel):
+    def __init__(self, image_path="", parent=None):
+        super().__init__(parent)
+        self.image_path = image_path
+
+    def mouseDoubleClickEvent(self, event):
+        if self.image_path and os.path.exists(self.image_path):
+            QDesktopServices.openUrl(QUrl.fromLocalFile(self.image_path))
+        else:
+            QMessageBox.warning(self.window(), "无法打开", "图片不存在或已被删除")
+        super().mouseDoubleClickEvent(event)
+
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+        save_as_action = menu.addAction("另存为")
+        chosen = menu.exec(event.globalPos())
+
+        if chosen == save_as_action:
+            if not self.image_path or not os.path.exists(self.image_path):
+                QMessageBox.warning(self.window(), "另存失败", "源图片不存在")
+                return
+
+            target_path, _ = QFileDialog.getSaveFileName(
+                self.window(),
+                "图片另存为",
+                os.path.basename(self.image_path),
+                "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+            )
+
+            if not target_path:
+                return
+
+            try:
+                shutil.copy2(self.image_path, target_path)
+                QMessageBox.information(
+                    self.window(),
+                    "另存成功",
+                    f"图片已保存到：\n{target_path}"
+                )
+            except Exception as e:
+                QMessageBox.warning(self.window(), "另存失败", str(e))
+
 class UiEmitter(QObject):
     users_update = Signal(list)
     msg_in = Signal(str, str, object)
@@ -176,6 +218,7 @@ class MainWindow:
         self.inputTextEdit = None
         self.sendMsgButton = None
         self.sendFileButton = None
+        self.sendImageButton = None
 
         self.load_ui()
         self.bind_signals()
@@ -232,7 +275,7 @@ class MainWindow:
         self.inputTextEdit = self.window.findChild(QTextEdit, "inputTextEdit")
         self.sendMsgButton = self.window.findChild(QPushButton, "sendMsgButton")
         self.sendFileButton = self.window.findChild(QPushButton, "sendFileButton")
-
+        self.sendImageButton = self.window.findChild(QPushButton, "sendImageButton")
         self.messageListWidget.setSpacing(3)
 
         if self.chatListWidget:
@@ -257,7 +300,7 @@ class MainWindow:
                     font-weight: 600;
                 }
             """)
-
+        self.interfaceWidget.setCurrentIndex(0)
         # 连接双击打开文件信号
         self.messageListWidget.itemDoubleClicked.connect(self.open_file)
     def bind_signals(self):
@@ -271,10 +314,90 @@ class MainWindow:
             self.chatListWidget.itemClicked.connect(self.on_peer_clicked)
         if self.sendFileButton:
             self.sendFileButton.clicked.connect(self.send_file)
+        if self.sendImageButton:
+            self.sendImageButton.clicked.connect(self.send_image)
 
         if self.loginEyeButton and self.userPwdEdit:
             self.loginEyeButton.toggled.connect(
                 lambda checked: self.toggle_password(self.userPwdEdit, self.loginEyeButton, checked))
+    def send_image(self):
+        if not self.sock:
+            self.popUp("提示","未连接到服务器",ok=False)
+            return
+        if not self.current_peer:
+            self.popUp("提示","请先选择聊天对象",ok=False)
+            return
+        image_path,_ = QFileDialog.getOpenFileName(
+            self.window,
+            "选择图片",
+            "",
+            "Images (*.png *.jpg *.jpeg *.bmp *.gif)"
+        )
+        if not image_path:
+            return
+        filename=os.path.basename(image_path)
+        try:
+            with open(image_path, "rb") as f:
+                encoded = base64.b64encode(f.read()).decode()
+            timestamp = datetime.now()
+            if self.current_peer == "__ALL__":
+                msg = {
+                    "action": "public_msg",
+                    "from": self.username,
+                    "type": "image",
+                    "filename": filename,
+                    "data": encoded
+                }
+
+                image_msg = {
+                    "type": "image",
+                    "filename": filename,
+                    "path": image_path,
+                    "is_me": True,
+                    "time": timestamp,
+                    "from": self.username,
+                    "public": True
+                }
+                with self.sessions_lock:
+                    self.sessions["__ALL__"]["messages"].append(image_msg)
+                    self.refresh_message_view("__ALL__")
+            else:
+                msg = {
+                    "action": "private_msg",
+                    "from": self.username,
+                    "to": self.current_peer,
+                    "type": "image",
+                    "filename": filename,
+                    "data": encoded
+                }
+
+                image_msg = {
+                    "type": "image",
+                    "filename": filename,
+                    "path": image_path,
+                    "is_me": True,
+                    "time": timestamp,
+                    "from": self.username
+                }
+
+                with self.sessions_lock:
+                    if self.current_peer not in self.sessions:
+                        self.sessions[self.current_peer] = {
+                            "messages": [],
+                            "unread": 0,
+                            "online": True,
+                            "ip": ""
+                        }
+
+                    self.sessions[self.current_peer]["messages"].append(image_msg)
+                    self.refresh_message_view(self.current_peer)
+
+            with self.sock_lock:
+                send_json(self.sock, msg)
+
+        except Exception as e:
+            self.popUp("发送失败", str(e), ok=False)
+
 
     def popUp(self, title, msg, ok=True):
         if ok:
@@ -671,9 +794,72 @@ class MainWindow:
         container = QWidget()
         layout = QHBoxLayout(container)
         layout.setContentsMargins(10, 2, 10, 2)
+        if isinstance(msg, dict) and msg.get("type") == "image":
+            filename = msg["filename"]
+            path = msg["path"]
+            is_me = msg["is_me"]
+            msg_time = msg["time"]
+            from_ = msg["from"]
 
+            wrapper = QWidget()
+            vbox = QVBoxLayout(wrapper)
+            vbox.setContentsMargins(0, 0, 0, 0)
+            vbox.setSpacing(4)
+
+            title = QLabel(f"{'我' if is_me else from_} 发送了图片")
+            title.setStyleSheet("color:#666; font-size:12px;")
+
+            image_label = ImageLabel(path)
+            image_label.setCursor(Qt.CursorShape.PointingHandCursor)
+            image_label.setScaledContents(False)
+
+            if os.path.exists(path):
+                pixmap = QPixmap(path)
+                if not pixmap.isNull():
+                    pixmap = pixmap.scaled(
+                        220, 220,
+                        Qt.AspectRatioMode.KeepAspectRatio,
+                        Qt.TransformationMode.SmoothTransformation
+                    )
+                    image_label.setPixmap(pixmap)
+                else:
+                    image_label.setText(f"图片加载失败\n{filename}")
+            else:
+                image_label.setText(f"图片不存在\n{filename}")
+
+            image_label.setStyleSheet("""
+                    QLabel{
+                        padding:8px;
+                        border-radius:10px;
+                        background:#E8F0FE;
+                        border:1px solid #C3D3F5;
+                    }
+                """ if is_me else """
+                    QLabel{
+                        padding:8px;
+                        border-radius:10px;
+                        background:#FFFFFF;
+                        border:1px solid #E5E5E5;
+                    }
+                """)
+
+            vbox.addWidget(title)
+            vbox.addWidget(image_label)
+
+            item.setData(Qt.ItemDataRole.UserRole, path)
+
+            if self.last_msg_time is None or (msg_time - self.last_msg_time).total_seconds() >= 120:
+                self.add_time_item(msg_time.strftime("%H:%M"))
+                self.last_msg_time = msg_time
+
+            if is_me:
+                layout.addStretch()
+                layout.addWidget(wrapper)
+            else:
+                layout.addWidget(wrapper)
+                layout.addStretch()
         # 文件消息
-        if isinstance(msg, dict) and msg.get("type") == "file":
+        elif isinstance(msg, dict) and msg.get("type") == "file":
             filename = msg["filename"]
             path = msg["path"]
             is_me = msg["is_me"]
@@ -780,13 +966,7 @@ class MainWindow:
     def on_message_in(self, _from, action, msg):
         if action == "private_msg":
             peer = _from
-            # ✅ 判断是不是文件
-            if msg.get("type") == "file":
-                content = msg
-            else:
-                content = msg.get("content")
 
-            # ✅ 先确保会话存在
             with self.sessions_lock:
                 if peer not in self.sessions:
                     self.sessions[peer] = {
@@ -796,10 +976,12 @@ class MainWindow:
                         "ip": ""
                     }
 
+            msg_type=msg.get("type","")
+
             # =====================
             # ✅ 文件消息处理
             # =====================
-            if msg.get("type") == "file":
+            if msg_type == "file":
 
                 filename = msg.get("filename")
                 data = msg.get("data")
@@ -840,7 +1022,7 @@ class MainWindow:
             # =====================
             # ✅ 普通文本消息
             # =====================
-            else:
+            elif msg_type =="file":
                 content = msg.get("content", "")
 
                 with self.sessions_lock:
@@ -857,12 +1039,80 @@ class MainWindow:
                         self.sessions[peer]["unread"] += 1
                     else:
                         self.refresh_message_view(peer)
+            else:
+                filename = msg.get("filename", "image.png")
+                data = msg.get("data", "")
+
+                save_dir = os.path.join(os.getcwd(), "received_images")
+                os.makedirs(save_dir, exist_ok=True)
+
+                save_path = os.path.join(
+                    save_dir,
+                    f"{int(time.time())}_{filename}"
+                )
+
+                try:
+                    with open(save_path, "wb") as f:
+                        f.write(base64.b64decode(data))
+                except Exception as e:
+                    self.emitter.info.emit(f"图片保存失败: {e}")
+                    return
+
+                image_msg = {
+                    "type": "image",
+                    "filename": filename,
+                    "path": save_path,
+                    "is_me": False,
+                    "time": datetime.now(),
+                    "from": _from
+                }
+
+                with self.sessions_lock:
+                    self.sessions[peer]["messages"].append(image_msg)
+
+                    if self.current_peer != peer:
+                        self.sessions[peer]["unread"] += 1
+                    else:
+                        self.refresh_message_view(peer)
         elif action == "public_msg":
+            if msg.get("type") == "image":
+                from_user = msg.get("from")
+                filename = msg.get("filename")
+                data =msg.get("data")
+
+                save_dir = os.path.join(os.getcwd(), "received_images")
+                os.makedirs(save_dir, exist_ok=True)
+                save_path = os.path.join(
+                    save_dir,
+                    f"{from_user}_{int(datetime.now().timestamp())}_{filename}"
+                )
+                try:
+                    with open(save_path, "wb") as f:
+                        f.write(base64.b64decode(data))
+                except Exception as e:
+                    self.emitter.info.emit(f"群图片保存失败:{e}")
+                image_msg = {
+                    "type": "image",
+                    "filename": filename,
+                    "path": save_path,
+                    "is_me": False,
+                    "time": datetime.now(),
+                    "from": from_user,
+                    "public": True
+                }
+
+                with self.sessions_lock:
+                    self.sessions["__ALL__"]["messages"].append(image_msg)
+
+                    if self.current_peer != "__ALL__":
+                        self.sessions["__ALL__"]["unread"] += 1
+                    else:
+                        self.refresh_message_view("__ALL__")
 
             # ======================
             # 📄 文件消息
             # ======================
-            if msg.get("type") == "file":
+            elif msg.get("type") == "file":
                 from_user = msg.get("from")
                 filename = msg.get("filename")
                 data = msg.get("data")

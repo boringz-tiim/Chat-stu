@@ -22,6 +22,9 @@
      <height>551</height>
     </rect>
    </property>
+   <property name="currentIndex">
+    <number>2</number>
+   </property>
    <widget class="QWidget" name="login">
     <widget class="QPushButton" name="loginButton">
      <property name="geometry">
@@ -435,6 +438,24 @@
      </property>
      <property name="text">
       <string>发送文件</string>
+     </property>
+    </widget>
+    <widget class="QPushButton" name="sendImageButton">
+     <property name="geometry">
+      <rect>
+       <x>370</x>
+       <y>510</y>
+       <width>91</width>
+       <height>31</height>
+      </rect>
+     </property>
+     <property name="font">
+      <font>
+       <pointsize>12</pointsize>
+      </font>
+     </property>
+     <property name="text">
+      <string>发送图片</string>
      </property>
     </widget>
    </widget>
